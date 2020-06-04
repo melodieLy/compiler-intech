@@ -81,16 +81,90 @@ bool parse_is_type (char *lexem)
   return true;
 }
 
+bool stack_is_smaller (void *data, char c) {
+  char cStack = *(char *)data;
+  char t[1] = {'\0'};
+  if(strcmp(data,t) == 0) return true;
+  if(isnbr(cStack)) return false;
+  if(cStack == '+' || cStack == '-') {
+    if(c == '+' || c == '-') return false;
+    else return true;
+  } else if (cStack == '*' || cStack == '/') {
+     if(isnbr(c)) return true;
+     return false;
+  }
+  return false;
+}
+
+bool isop (char chr) 
+{
+  return chr == '+' || chr == '-' || chr == '/' || chr == '*';
+}
+
+// ast_t *type_ast (void *c) {
+//   if(isnbr(*(char*)c)) return ast_new_integer(*(long*)c);
+//   if(isop(*(char*)c)) {
+//     if(*(char*)c == "+") return ast_new_unary(*(char*)c, ast)
+//   }
+// }
+
 ast_t *parse_expression (buffer_t *buffer)
 {
-  // TODO
+  // TODO :
+  /**
+   * Push la valeur dans la pile
+   * Retirer le top de la pile
+   * l'affecter a sortie
+   * comparer avec sortie et les valeur suivantes (voir algo !)
+   * Puis ensuite, transformer ce qui est dans la "sortie" en arbre.
+   * */
+  char start = '\0';
+  void *data = &start;
+  mystack_t stack = NULL;
+  stack_push(&stack,data);
+  mystack_t exit = NULL;
+  buf_skipblank(buffer);
+  char c = buf_getchar(buffer);
+  for (;;) {
+    data = stack_top(stack);
+    printf("%c VS %c\n",*(char*)data,c);
+    buf_print(buffer);
+    if(stack_is_smaller(data,c)) {
+      char temp = c;
+      stack_push(&stack, &temp);
+      printf("Add element : '%c' on stack\n", *(char*)stack_top(stack));
+      buf_skipblank(buffer);
+      c = buf_getchar(buffer);
+    } else {
+      printf("false\n");
+      char *temp = stack_pop(&stack);
+      printf("add '%c' on exit\n",*temp);
+      stack_push(&exit, temp);
+      //data = stack_top(stack);
+      printf("%c VS %c\n",*(char*)data, *(char*)stack_top(exit));
+      
+      // while(!stack_is_smaller(data,*(char*)stack_top(exit))) {
+      //   temp = stack_pop(&stack);
+      //   stack_push(&exit,temp);
+      //   printf("add '%c' on exit\n",*temp);
+      //   data = stack_top(stack);
+      //   printf("%c VS %c\n",*(char*)data,c);
+      // }
+      printf("end of comparaison\n");
+    }
+    if(c == ';') {
+      while(stack_count(exit) >= 0) {
+        printf("count : %d\n", stack_count(exit));
+        char *temp = stack_pop(&exit);
+        printf("exit remove : %c\n", *temp);
+        
+      }
+    }
+  }
+      
   return NULL;
 }
 
-/**
- * entier a;
- * entier a = 2;
- */
 ast_t *parse_declaration (buffer_t *buffer)
 {
   int type = parse_var_type(buffer);
@@ -138,6 +212,8 @@ ast_list_t *parse_function_body (buffer_t *buffer)
   do {
     ast_t *statement = parse_statement(buffer);
     ast_list_add(&stmts, statement);
+    ast_t *exp = parse_expression(buffer);
+    //ast_list_new_node(exp);
     buf_skipblank(buffer);
     next = buf_getchar_rollback(buffer);
   } while (next != '}');
@@ -145,9 +221,7 @@ ast_list_t *parse_function_body (buffer_t *buffer)
   return stmts;
 }
 
-/**
- * exercice: cf slides: https://docs.google.com/presentation/d/1AgCeW0vBiNX23ALqHuSaxAneKvsteKdgaqWnyjlHTTA/edit#slide=id.g86e19090a1_0_527
- */
+
 ast_t *parse_function (buffer_t *buffer)
 {
   buf_skipblank(buffer);
@@ -164,7 +238,6 @@ ast_t *parse_function (buffer_t *buffer)
   ast_list_t *params = parse_parameters(buffer);
   int return_type = parse_return_type(buffer);
   ast_list_t *stmts = parse_function_body(buffer);
-
   return ast_new_function(name, return_type, params, stmts);
 }
 
@@ -175,7 +248,6 @@ ast_list_t *parse (buffer_t *buffer)
 {
   ast_t *function = parse_function(buffer);
   ast_print(function);
-
   if (DEBUG) printf("** end of file. **\n");
   return NULL;
 }

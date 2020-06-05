@@ -89,6 +89,7 @@ bool parse_is_type (char *lexem)
   return true;
 }
 
+<<<<<<< HEAD
 bool stack_is_smaller (ast_t *ast_top, ast_t *ast_buf) {
   int w_top = ast_binary_priority(ast_top);
   int w_buf = ast_binary_priority(ast_buf);
@@ -98,13 +99,9 @@ bool stack_is_smaller (ast_t *ast_top, ast_t *ast_buf) {
   return false;
 }
 
-ast_t *isNbrOp (char chr) 
+ast_t *create_ast_binary (char chr) 
 {
-  if(chr >= '0' && chr <= '9') {
-    return ast_new_integer((long)chr);
-  }
-  if(chr == '+' || chr == '-' || chr == '*' || chr == '/') {
-    switch (chr)
+  switch (chr)
     {
     case '+':
       return ast_new_binary(AST_BIN_PLUS, NULL, NULL);
@@ -117,13 +114,123 @@ ast_t *isNbrOp (char chr)
       break;
     case '/':
       return ast_new_binary(AST_BIN_DIV, NULL, NULL);
+      break;
     default:
       return NULL;
       break;
     }
+  return NULL;
+}
+
+// ast_t *is_sym_from_table (buffer_t *buffer, symbol_t **table) {
+//   char *name = lexer_getalphanum(buffer);
+//   symbol_t *sym = sym_search(*table, name);
+// }
+
+ast_t *parse_expression_next_symbol (buffer_t *buffer, symbol_t **table) {
+  // cette fonction doit deviner, grâce à buf_getchar, ou lexer_getalphanum, ou lexer_getop (à coder)
+  // quel est le type de symbole qui est actuellement à lire
+  // elle doit retourner l'ast_t correspondant à ce symbole
+  // il n'est pas exclu de devoir rajouter des paramètres à cette fonction permettant par exemple de lui indiquer quels sont les types 
+  //d'ast qui sont autorisés à ce moment de la lecture (ex: une opérande après avoir lu un opérateur, ex pas de fin d'expression juste après un opérateur, etc.)
+  buf_skipblank(buffer);
+  if(lexer_getnumber(buffer)) {
+    long nbr = lexer_getnumber(buffer);
+    return ast_new_integer(nbr);
+  }
+  else if (lexer_getop(buffer)) {
+    char *op = lexer_getop(buffer); //ToDo !!
+    printf("op : %c\n", *op);
+  }
+
+  
+  return NULL; // TODO
+}
+
+ast_t *pile_vers_arbre (mystack_t *pile) {
+  if (stack_isempty(*pile)) return NULL;
+
+  ast_t *curr = stack_pop(pile);
+  if (ast_is_binary(curr)) {
+    if (!curr->binary.right) curr->binary.right = pile_vers_arbre(pile);
+    if (!curr->binary.left) curr->binary.left = pile_vers_arbre(pile);
+  }
+  
+  return curr;
+}
+
+ast_t *parse_expression (buffer_t *buffer, symbol_t **table)
+{
+  mystack_t pile = NULL;
+  mystack_t sortie = NULL;
+  bool end_of_expression = false;
+  ast_t *last_popped = NULL;
+  ast_t *b = NULL;
+//   positionner le curseur i sur le début de la chaîne
+//   empiler le caractère nul dans pile
+  stack_push(&pile, NULL);
+//   répéter indéfiniment:
+  for (;;) {
+//      si i pointe sur le caractère nul et le sommet de la pile contient également le caractère nul
+    if (stack_top(pile)  == NULL && end_of_expression == true) {
+//        retourner sortie
+      return pile_vers_arbre(&sortie);
+    } 
+//      sinon
+    else {
+//        soient a le symbole en sommet de pile et b le symbole pointé par i
+      ast_t *a = stack_top(pile);
+      b = parse_expression_next_symbol(buffer, table);
+//        si a a une priorité plus basse que b
+      if (ast_binary_priority(a) < ast_binary_priority(b)) {
+//          empiler b dans pile
+        stack_push(&pile, b);
+//          avancer i sur le symbole suivant
+        // TODO: lire le prochain symbole
+      }
+//        sinon
+      else {
+//          répéter
+        do {
+//            dépiler pile et empiler la valeur dépilée dans sortie
+          last_popped = stack_pop(&pile);
+          stack_push(&sortie, last_popped);
+//            jusqu’à ce que le symbole en sommet de pile aie une priorité plus basse que le symbole le plus récemment dépilé
+        } while (ast_binary_priority(stack_top(pile)) >= ast_binary_priority(last_popped));
+      }
+    }
   }
   return NULL;
 }
+
+ast_t *parse_declaration (buffer_t *buffer, symbol_t **table)
+=======
+bool stack_is_smaller (void *data, char c) {
+  char cStack = *(char *)data;
+  char t[1] = {'\0'};
+  if(strcmp(data,t) == 0) return true;
+  if(isnbr(cStack)) return false;
+  if(cStack == '+' || cStack == '-') {
+    if(c == '+' || c == '-') return false;
+    else return true;
+  } else if (cStack == '*' || cStack == '/') {
+     if(isnbr(c)) return true;
+     return false;
+  }
+  return false;
+}
+
+bool isop (char chr) 
+{
+  return chr == '+' || chr == '-' || chr == '/' || chr == '*';
+}
+
+// ast_t *type_ast (void *c) {
+//   if(isnbr(*(char*)c)) return ast_new_integer(*(long*)c);
+//   if(isop(*(char*)c)) {
+//     if(*(char*)c == "+") return ast_new_unary(*(char*)c, ast)
+//   }
+// }
 
 ast_t *parse_expression (buffer_t *buffer)
 {
@@ -135,36 +242,30 @@ ast_t *parse_expression (buffer_t *buffer)
    * comparer avec sortie et les valeur suivantes (voir algo !)
    * Puis ensuite, transformer ce qui est dans la "sortie" en arbre.
    * */
-  mystack_t exit = NULL;
+  char start = '\0';
+  void *data = &start;
   mystack_t stack = NULL;
-  stack_push(&stack,NULL);
-
-  bool toContinued = true;
+  stack_push(&stack,data);
+  mystack_t exit = NULL;
+  buf_skipblank(buffer);
+  char c = buf_getchar(buffer);
   for (;;) {
-    ast_t *data = stack_top(stack);
-    
-    if(toContinued) {
+    data = stack_top(stack);
+    printf("%c VS %c\n",*(char*)data,c);
+    buf_print(buffer);
+    if(stack_is_smaller(data,c)) {
+      char temp = c;
+      stack_push(&stack, &temp);
+      printf("Add element : '%c' on stack\n", *(char*)stack_top(stack));
       buf_skipblank(buffer);
-      char c = buf_getchar(buffer);
-      ast_t *ast_item = isNbrOp(c);
+      c = buf_getchar(buffer);
     } else {
-      toContinued = true;
-    }
-
-    if(stack_is_smaller(data,ast_item)) {
-      stack_push(&stack, ast_item);
-    } else {
-      do {
-        ast_t *temp = stack_pop(&stack);
-        stack_push(&exit, temp);
-      } while (stack_is_smaller(data,temp))
-      toContinued = false;
-
-      //char *temp = stack_pop(&stack);
-      //printf("add '%c' on exit\n",*temp);
-      //stack_push(&exit, temp);
+      printf("false\n");
+      char *temp = stack_pop(&stack);
+      printf("add '%c' on exit\n",*temp);
+      stack_push(&exit, temp);
       //data = stack_top(stack);
-      //printf("%c VS %c\n",*(char*)data, *(char*)stack_top(exit));
+      printf("%c VS %c\n",*(char*)data, *(char*)stack_top(exit));
       
       // while(!stack_is_smaller(data,*(char*)stack_top(exit))) {
       //   temp = stack_pop(&stack);
@@ -175,12 +276,21 @@ ast_t *parse_expression (buffer_t *buffer)
       // }
       printf("end of comparaison\n");
     }
+    if(c == ';') {
+      while(stack_count(exit) >= 0) {
+        printf("count : %d\n", stack_count(exit));
+        char *temp = stack_pop(&exit);
+        printf("exit remove : %c\n", *temp);
+        
+      }
+    }
   }
       
   return NULL;
 }
 
 ast_t *parse_declaration (buffer_t *buffer)
+>>>>>>> f5ac05aea1fdcc7fedac868cec0cd57680667155
 {
   int type = parse_var_type(buffer);
   buf_skipblank(buffer);
@@ -227,6 +337,8 @@ ast_list_t *parse_function_body (buffer_t *buffer, symbol_t **table)
   do {
     ast_t *statement = parse_statement(buffer, table);
     ast_list_add(&stmts, statement);
+    ast_t *exp = parse_expression(buffer);
+    //ast_list_new_node(exp);
     buf_skipblank(buffer);
     next = buf_getchar_rollback(buffer);
   } while (next != '}');
@@ -235,7 +347,11 @@ ast_list_t *parse_function_body (buffer_t *buffer, symbol_t **table)
 }
 
 
+<<<<<<< HEAD
+ast_t *parse_function (buffer_t *buffer, symbol_t **table)
+=======
 ast_t *parse_function (buffer_t *buffer)
+>>>>>>> f5ac05aea1fdcc7fedac868cec0cd57680667155
 {
   buf_skipblank(buffer);
   char *lexem = lexer_getalphanum(buffer);
@@ -248,10 +364,15 @@ ast_t *parse_function (buffer_t *buffer)
   // TODO
   char *name = lexer_getalphanum(buffer);
   
+<<<<<<< HEAD
   ast_list_t *params = parse_parameters(buffer, table);
   int return_type = parse_return_type(buffer, table);
   ast_list_t *stmts = parse_function_body(buffer, table);
-
+=======
+  ast_list_t *params = parse_parameters(buffer);
+  int return_type = parse_return_type(buffer);
+  ast_list_t *stmts = parse_function_body(buffer);
+>>>>>>> f5ac05aea1fdcc7fedac868cec0cd57680667155
   return ast_new_function(name, return_type, params, stmts);
 }
 

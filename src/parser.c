@@ -99,6 +99,23 @@ bool stack_is_smaller (ast_t *ast_top, ast_t *ast_buf) {
 }
 
 ast_t *create_ast_binary (char chr) 
+     return false;
+  }
+  return false;
+}
+
+bool isop (char chr) 
+{
+  return chr == '+' || chr == '-' || chr == '/' || chr == '*';
+}
+
+// ast_t *type_ast (void *c) {
+//   if(isnbr(*(char*)c)) return ast_new_integer(*(long*)c);
+//   if(isop(*(char*)c)) {
+//     if(*(char*)c == "+") return ast_new_unary(*(char*)c, ast)
+//   }
+// }
+
 {
   switch (chr)
     {
@@ -118,6 +135,40 @@ ast_t *create_ast_binary (char chr)
       return NULL;
       break;
     }
+    buf_print(buffer);
+    if(stack_is_smaller(data,c)) {
+      char temp = c;
+      stack_push(&stack, &temp);
+      printf("Add element : '%c' on stack\n", *(char*)stack_top(stack));
+      buf_skipblank(buffer);
+      c = buf_getchar(buffer);
+    } else {
+      printf("false\n");
+      char *temp = stack_pop(&stack);
+      printf("add '%c' on exit\n",*temp);
+      stack_push(&exit, temp);
+      //data = stack_top(stack);
+      printf("%c VS %c\n",*(char*)data, *(char*)stack_top(exit));
+      
+      // while(!stack_is_smaller(data,*(char*)stack_top(exit))) {
+      //   temp = stack_pop(&stack);
+      //   stack_push(&exit,temp);
+      //   printf("add '%c' on exit\n",*temp);
+      //   data = stack_top(stack);
+      //   printf("%c VS %c\n",*(char*)data,c);
+      // }
+      printf("end of comparaison\n");
+    }
+    if(c == ';') {
+      while(stack_count(exit) >= 0) {
+        printf("count : %d\n", stack_count(exit));
+        char *temp = stack_pop(&exit);
+        printf("exit remove : %c\n", *temp);
+        
+      }
+    }
+  }
+      
   return NULL;
 }
 
@@ -249,6 +300,8 @@ ast_list_t *parse_function_body (buffer_t *buffer, symbol_t **table)
   do {
     ast_t *statement = parse_statement(buffer, table);
     ast_list_add(&stmts, statement);
+    ast_t *exp = parse_expression(buffer);
+    //ast_list_new_node(exp);
     buf_skipblank(buffer);
     next = buf_getchar_rollback(buffer);
   } while (next != '}');
